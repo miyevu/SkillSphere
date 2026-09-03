@@ -1,9 +1,10 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { skillsData } from '@/lib/skills-data';
+import { isEnrolled, enrollInSkill } from '@/lib/enrollment';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, Users, Star, CheckCircle, BookOpen, Code, Award } from 'lucide-react';
 
@@ -13,6 +14,10 @@ export default function SkillDetailPage() {
   const skill = skillsData.find(s => s.id === skillId);
   const [enrolled, setEnrolled] = useState(false);
   const [expandedModule, setExpandedModule] = useState<string | null>(skill?.modules[0]?.id || null);
+
+  useEffect(() => {
+    if (skill) setEnrolled(isEnrolled(skill.id));
+  }, [skill]);
 
   if (!skill) {
     return (
@@ -36,11 +41,8 @@ export default function SkillDetailPage() {
   };
 
   const handleEnroll = () => {
+    enrollInSkill(skill.id);
     setEnrolled(true);
-    // In a real app, this would call an API
-    setTimeout(() => {
-      alert(`Successfully enrolled in ${skill.title}!`);
-    }, 500);
   };
 
   return (
@@ -188,14 +190,18 @@ export default function SkillDetailPage() {
                     {expandedModule === module.id && (
                       <div className="px-4 py-3 bg-white border-t space-y-2">
                         {module.lessons.map((lesson, lessonIdx) => (
-                          <div key={lesson.id} className="flex items-start gap-3 py-2">
+                          <Link
+                            key={lesson.id}
+                            href={`/skills/${skill.id}/lessons/${lesson.id}`}
+                            className="flex items-start gap-3 py-2 hover:bg-slate-50 rounded-md px-2 -mx-2 transition-colors"
+                          >
                             <span className="text-slate-400 text-sm min-w-fit">Lesson {lessonIdx + 1}</span>
                             <div className="flex-1">
                               <p className="font-medium text-slate-900">{lesson.title}</p>
                               <p className="text-sm text-slate-600">{lesson.description}</p>
                               <span className="text-xs text-slate-500">{lesson.duration}</span>
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     )}

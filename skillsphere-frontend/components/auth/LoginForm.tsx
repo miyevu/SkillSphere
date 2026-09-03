@@ -7,9 +7,11 @@ import { Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginForm() {
   const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,7 +25,6 @@ export default function LoginForm() {
       ...prev,
       [name]: value,
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -34,13 +35,13 @@ export default function LoginForm() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
@@ -52,7 +53,7 @@ export default function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -60,22 +61,15 @@ export default function LoginForm() {
     }
 
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store user session (in real app, would be handled by backend)
-      localStorage.setItem('user', JSON.stringify({
-        email: formData.email,
-        role: 'student', // Default role
-      }));
-      
-      router.push('/dashboard');
-    } catch (error) {
-      setErrors({ submit: 'Login failed. Please try again.' });
-    } finally {
-      setIsLoading(false);
+    const result = await login(formData.email, formData.password);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setErrors({ submit: result.error || 'Login failed. Please try again.' });
+      return;
     }
+
+    router.push('/dashboard');
   };
 
   return (
@@ -122,8 +116,8 @@ export default function LoginForm() {
         </div>
       )}
 
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full"
         disabled={isLoading}
       >

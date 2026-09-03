@@ -13,7 +13,7 @@ export default function Home() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        router.push('/dashboard');
+        router.push(user.role === 'lecturer' ? '/lecturer/dashboard' : '/dashboard');
       } else {
         setShowContent(true);
       }

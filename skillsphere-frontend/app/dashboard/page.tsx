@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
@@ -12,12 +13,18 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/auth/login');
+    if (!isLoading) {
+      if (!user) {
+        router.push('/auth/login');
+      } else if (user.role === 'lecturer') {
+        router.push('/lecturer/dashboard');
+      } else if (user.role === 'admin') {
+        router.push('/admin/dashboard');
+      }
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading || !user || user.role === 'lecturer' || user.role === 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -26,10 +33,6 @@ export default function DashboardPage() {
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const handleLogout = () => {
@@ -54,6 +57,21 @@ export default function DashboardPage() {
                   <p className="font-medium text-slate-900">{user.fullName || user.email.split('@')[0]}</p>
                 </div>
               </div>
+              <Link href="/profile">
+                <Button variant="ghost" size="sm">
+                  View Profile
+                </Button>
+              </Link>
+              <Link href="/portfolio">
+                <Button variant="ghost" size="sm">
+                  Portfolio
+                </Button>
+              </Link>
+              <Link href="/marketplace">
+                <Button variant="ghost" size="sm">
+                  Marketplace
+                </Button>
+              </Link>
               <Button
                 onClick={handleLogout}
                 variant="outline"

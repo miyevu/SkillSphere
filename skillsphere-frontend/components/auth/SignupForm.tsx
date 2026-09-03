@@ -7,9 +7,11 @@ import { Mail, Lock, User, BookOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SignupForm() {
   const router = useRouter();
+  const { signup } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -26,7 +28,6 @@ export default function SignupForm() {
       ...prev,
       [name]: value,
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -37,11 +38,11 @@ export default function SignupForm() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
     }
-    
+
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -49,7 +50,7 @@ export default function SignupForm() {
     } else if (!formData.email.endsWith('@gctu.edu.gh')) {
       newErrors.email = 'Please use your GCTU email address';
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 8) {
@@ -65,7 +66,7 @@ export default function SignupForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -73,23 +74,15 @@ export default function SignupForm() {
     }
 
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Store user session
-      localStorage.setItem('user', JSON.stringify({
-        fullName: formData.fullName,
-        email: formData.email,
-        role: formData.role,
-      }));
-      
-      router.push('/dashboard');
-    } catch (error) {
-      setErrors({ submit: 'Sign up failed. Please try again.' });
-    } finally {
-      setIsLoading(false);
+    const result = await signup(formData.fullName, formData.email, formData.password, formData.role);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setErrors({ submit: result.error || 'Sign up failed. Please try again.' });
+      return;
     }
+
+    router.push('/dashboard');
   };
 
   return (
@@ -191,8 +184,8 @@ export default function SignupForm() {
         </div>
       )}
 
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full"
         disabled={isLoading}
       >
