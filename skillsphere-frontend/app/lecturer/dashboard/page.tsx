@@ -192,12 +192,7 @@ export default function LecturerDashboardPage() {
                         {req.projectDescription || 'No description provided.'}
                       </p>
                       {req.projectLink && (
-                        
-                          href={req.projectLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline block mb-4"
-                        >
+                        <a href={req.projectLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline block mb-4">
                           View project
                         </a>
                       )}
