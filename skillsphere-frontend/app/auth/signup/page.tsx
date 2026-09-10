@@ -24,7 +24,7 @@ export default function SignupPage() {
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
           By signing up, you agree to our Terms of Service and Privacy Policy.<br />
-          Only GCTU email addresses are accepted (@gctu.edu.gh).
+          Only GCTU email addresses are accepted (@live.gctu.edu.gh).
         </p>
       </div>
     </div>

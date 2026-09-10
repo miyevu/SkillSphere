@@ -1,32 +1,39 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import {
+  RegisteredUser,
+  UserRole,
+  findUser,
+  addUser,
+} from '@/lib/users-data';
 
-interface User {
-  fullName: string;
-  email: string;
-  role: string;
+interface AuthResult {
+  success: boolean;
+  error?: string;
+  user?: RegisteredUser;
+  pendingApproval?: boolean;
 }
 
 interface AuthContextValue {
-  user: User | null;
+  user: RegisteredUser | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (fullName: string, email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  signup: (fullName: string, email: string, password: string, role: string) => Promise<AuthResult>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const STORAGE_KEY = 'user';
+const SESSION_KEY = 'user';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<RegisteredUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      setUser(raw ? JSON.parse(raw) : null);
+      const raw = localStorage.getItem(SESSION_KEY);
+      setUser(raw ? (JSON.parse(raw) as RegisteredUser) : null);
     } catch {
       setUser(null);
     } finally {
@@ -34,25 +41,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
-    // No real backend yet — accept any non-empty password for now.
+  const login = async (email: string, password: string): Promise<AuthResult> => {
     if (!password) return { success: false, error: 'Password is required' };
-    const newUser: User = { fullName: email.split('@')[0], email, role: 'student' };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-    setUser(newUser);
-    return { success: true };
+
+    const existing = findUser(email);
+    if (!existing) {
+      return { success: false, error: 'No account found with this email. Please sign up first.' };
+    }
+
+    if (existing.status === 'pending_approval') {
+      return {
+        success: false,
+        error: 'Your lecturer account is pending admin approval. Please check back later.',
+      };
+    }
+    if (existing.status === 'rejected') {
+      return {
+        success: false,
+        error: 'Your lecturer application was not approved. Contact an administrator for details.',
+      };
+    }
+    if (existing.status === 'suspended') {
+      return { success: false, error: 'Your account has been suspended. Contact an administrator.' };
+    }
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(existing));
+    setUser(existing);
+    return { success: true, user: existing };
   };
 
-  const signup = async (fullName: string, email: string, password: string, role: string) => {
+  const signup = async (
+    fullName: string,
+    email: string,
+    password: string,
+    role: string
+  ): Promise<AuthResult> => {
     if (!password) return { success: false, error: 'Password is required' };
-    const newUser: User = { fullName, email, role };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+
+    if (findUser(email)) {
+      return { success: false, error: 'An account with this email already exists' };
+    }
+
+    const normalizedRole = (['student', 'lecturer', 'admin'].includes(role) ? role : 'student') as UserRole;
+    const status = normalizedRole === 'lecturer' ? 'pending_approval' : 'active';
+
+    const newUser: RegisteredUser = { fullName, email, role: normalizedRole, status };
+    addUser(newUser);
+
+    if (status === 'pending_approval') {
+      return { success: true, user: newUser, pendingApproval: true };
+    }
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
     setUser(newUser);
-    return { success: true };
+    return { success: true, user: newUser, pendingApproval: false };
   };
 
   const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SESSION_KEY);
     setUser(null);
   };
 

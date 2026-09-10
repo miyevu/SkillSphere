@@ -49,7 +49,7 @@ export default function SignupForm() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     } else if (!formData.email.endsWith('@live.gctu.edu.gh')) {
-      newErrors.email = 'Please use your GCTU email address';
+      newErrors.email = 'Please use your GCTU email address (@live.gctu.edu.gh)';
     }
 
     if (!formData.password) {
