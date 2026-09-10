@@ -9,6 +9,12 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 
+function redirectPathForRole(role?: string) {
+  if (role === 'lecturer') return '/lecturer/dashboard';
+  if (role === 'admin') return '/admin/dashboard';
+  return '/dashboard';
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const { login } = useAuth();
@@ -69,7 +75,7 @@ export default function LoginForm() {
       return;
     }
 
-    router.push('/dashboard');
+    router.push(redirectPathForRole(result.user?.role));
   };
 
   return (
@@ -82,7 +88,7 @@ export default function LoginForm() {
             id="email"
             name="email"
             type="email"
-            placeholder="your.email@gctu.edu.gh"
+            placeholder="your.email@live.gctu.edu.gh"
             value={formData.email}
             onChange={handleInputChange}
             className="pl-10"

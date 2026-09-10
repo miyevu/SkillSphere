@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User, BookOpen, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, BookOpen, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ export default function SignupForm() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -47,7 +48,7 @@ export default function SignupForm() {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
-    } else if (!formData.email.endsWith('@gctu.edu.gh')) {
+    } else if (!formData.email.endsWith('@live.gctu.edu.gh')) {
       newErrors.email = 'Please use your GCTU email address';
     }
 
@@ -82,8 +83,27 @@ export default function SignupForm() {
       return;
     }
 
-    router.push('/dashboard');
+    if (result.pendingApproval) {
+      setPendingMessage(
+        'Your lecturer account has been created and is awaiting admin approval. You will be able to log in once approved.'
+      );
+      return;
+    }
+
+    router.push(result.user?.role === 'lecturer' ? '/lecturer/dashboard' : '/dashboard');
   };
+
+  if (pendingMessage) {
+    return (
+      <div className="text-center space-y-4">
+        <CheckCircle className="w-12 h-12 text-primary mx-auto" />
+        <p className="text-slate-700">{pendingMessage}</p>
+        <Link href="/auth/login" className="text-primary hover:underline font-medium block">
+          Go to Login
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-5">
@@ -113,7 +133,7 @@ export default function SignupForm() {
             id="email"
             name="email"
             type="email"
-            placeholder="your.email@gctu.edu.gh"
+            placeholder="your.email@live.gctu.edu.gh"
             value={formData.email}
             onChange={handleInputChange}
             className="pl-10"
@@ -139,6 +159,9 @@ export default function SignupForm() {
             <option value="lecturer">Lecturer</option>
           </select>
         </div>
+        {formData.role === 'lecturer' && (
+          <p className="text-xs text-slate-500">Lecturer accounts require admin approval before login.</p>
+        )}
       </div>
 
       <div className="space-y-2">
