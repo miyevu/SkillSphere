@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import NotificationBell from '@/components/notifications/NotificationBell';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
 
 export default function DashboardPage() {
@@ -49,7 +50,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               SkillSphere
             </h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-2 text-sm">
                 <User className="w-4 h-4 text-slate-600" />
                 <div>
@@ -72,6 +73,7 @@ export default function DashboardPage() {
                   Marketplace
                 </Button>
               </Link>
+              <NotificationBell />
               <Button
                 onClick={handleLogout}
                 variant="outline"

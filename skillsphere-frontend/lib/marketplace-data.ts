@@ -1,5 +1,7 @@
 'use client';
 
+import { addNotification } from './notifications-data';
+
 function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -8,7 +10,7 @@ function generateId() {
 
 export interface ServicePackage {
   id: string;
-  name: string; // e.g. Basic, Standard, Premium
+  name: string;
   price: number;
   deliveryDays: number;
   revisions: number;
@@ -121,12 +123,12 @@ export function addJobPost(item: Omit<JobPost, 'id' | 'createdAt' | 'status'>): 
   return newItem;
 }
 
-export function deleteJobPost(id: string) {
-  saveJobs(getJobPosts().filter((j) => j.id !== id));
-}
-
 export function updateJobPost(id: string, patch: Partial<JobPost>) {
   saveJobs(getJobPosts().map((j) => (j.id === id ? { ...j, ...patch } : j)));
+}
+
+export function deleteJobPost(id: string) {
+  saveJobs(getJobPosts().filter((j) => j.id !== id));
 }
 
 export function getJobPost(id: string): JobPost | undefined {
@@ -172,6 +174,18 @@ export function getProposalsForJob(jobId: string): Proposal[] {
 export function addProposal(item: Omit<Proposal, 'id' | 'createdAt' | 'status'>): Proposal {
   const newItem: Proposal = { ...item, id: generateId(), status: 'pending', createdAt: new Date().toISOString() };
   saveProposals([newItem, ...getProposals()]);
+
+  const job = getJobPost(item.jobId);
+  if (job) {
+    addNotification({
+      recipientEmail: job.clientEmail,
+      type: 'proposal_received',
+      title: 'New proposal received',
+      message: `${item.studentName} submitted a proposal for "${job.title}".`,
+      link: `/marketplace/jobs/${job.id}`,
+    });
+  }
+
   return newItem;
 }
 
@@ -255,13 +269,57 @@ export function updateProject(id: string, patch: Partial<Project>) {
   saveProjects(getProjects().map((p) => (p.id === id ? { ...p, ...patch } : p)));
 }
 
-export function updateMilestoneStatus(projectId: string, milestoneId: string, status: MilestoneStatus, deliverableLink?: string) {
+export function updateMilestoneStatus(
+  projectId: string,
+  milestoneId: string,
+  status: MilestoneStatus,
+  deliverableLink?: string
+) {
   const project = getProject(projectId);
   if (!project) return;
+
   const milestones = project.milestones.map((m) =>
     m.id === milestoneId ? { ...m, status, deliverableLink: deliverableLink ?? m.deliverableLink } : m
   );
-  updateProject(projectId, { milestones });
+
+  const allApproved = milestones.every((m) => m.status === 'approved');
+  updateProject(projectId, { milestones, status: allApproved ? 'completed' : project.status });
+
+  const milestone = milestones.find((m) => m.id === milestoneId);
+  if (status === 'delivered' && milestone) {
+    addNotification({
+      recipientEmail: project.clientEmail,
+      type: 'milestone_delivered',
+      title: 'Milestone delivered',
+      message: `${project.freelancerName} delivered "${milestone.title}" for "${project.title}".`,
+      link: `/marketplace/projects/${project.id}`,
+    });
+  }
+  if (status === 'approved' && milestone) {
+    addNotification({
+      recipientEmail: project.freelancerEmail,
+      type: 'milestone_approved',
+      title: 'Milestone approved',
+      message: `${project.clientName} approved "${milestone.title}" for "${project.title}".`,
+      link: `/marketplace/projects/${project.id}`,
+    });
+  }
+  if (allApproved) {
+    addNotification({
+      recipientEmail: project.clientEmail,
+      type: 'project_completed',
+      title: 'Project completed',
+      message: `"${project.title}" is now complete. You can leave a review.`,
+      link: `/marketplace/projects/${project.id}`,
+    });
+    addNotification({
+      recipientEmail: project.freelancerEmail,
+      type: 'project_completed',
+      title: 'Project completed',
+      message: `"${project.title}" is now complete. You can leave a review.`,
+      link: `/marketplace/projects/${project.id}`,
+    });
+  }
 }
 
 export function addMilestone(projectId: string, title: string, dueDate: string) {
@@ -276,6 +334,15 @@ export function addProjectMessage(projectId: string, senderEmail: string, sender
   if (!project) return;
   const newMessage: ProjectMessage = { id: generateId(), senderEmail, senderName, text, createdAt: new Date().toISOString() };
   updateProject(projectId, { messages: [...project.messages, newMessage] });
+
+  const recipient = senderEmail === project.clientEmail ? project.freelancerEmail : project.clientEmail;
+  addNotification({
+    recipientEmail: recipient,
+    type: 'new_message',
+    title: 'New message',
+    message: `${senderName}: ${text.length > 60 ? text.slice(0, 60) + '…' : text}`,
+    link: `/marketplace/projects/${project.id}`,
+  });
 }
 
 // ---------- Cross-cutting helpers ----------
@@ -289,7 +356,7 @@ export function hireFromListing(
   const deliveryDate = new Date();
   deliveryDate.setDate(deliveryDate.getDate() + pkg.deliveryDays);
 
-  return addProject({
+  const project = addProject({
     title: `${listing.title} (${pkg.name})`,
     clientEmail,
     clientName,
@@ -302,6 +369,16 @@ export function hireFromListing(
     sourceType: 'service',
     sourceId: listing.id,
   });
+
+  addNotification({
+    recipientEmail: listing.studentEmail,
+    type: 'hired',
+    title: "You've been hired!",
+    message: `${clientName} hired you for "${listing.title}" (${pkg.name}).`,
+    link: `/marketplace/projects/${project.id}`,
+  });
+
+  return project;
 }
 
 export function acceptProposal(proposal: Proposal, job: JobPost): Project {
@@ -314,7 +391,7 @@ export function acceptProposal(proposal: Proposal, job: JobPost): Project {
   const deliveryDate = new Date();
   deliveryDate.setDate(deliveryDate.getDate() + proposal.proposedDeliveryDays);
 
-  return addProject({
+  const project = addProject({
     title: job.title,
     clientEmail: job.clientEmail,
     clientName: job.clientName,
@@ -327,6 +404,16 @@ export function acceptProposal(proposal: Proposal, job: JobPost): Project {
     sourceType: 'job',
     sourceId: job.id,
   });
+
+  addNotification({
+    recipientEmail: proposal.studentEmail,
+    type: 'proposal_accepted',
+    title: 'Your proposal was accepted!',
+    message: `${job.clientName} accepted your proposal for "${job.title}".`,
+    link: `/marketplace/projects/${project.id}`,
+  });
+
+  return project;
 }
 
 export function getEmptyPackage(name: string): ServicePackage {

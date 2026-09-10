@@ -1,5 +1,7 @@
 'use client';
 
+import { addNotification, notifyAllLecturers } from './notifications-data';
+
 export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 
 export interface VerificationRequest {
@@ -66,9 +68,16 @@ export function submitForVerification(item: {
     reviewedAt: '',
     submittedAt: new Date().toISOString(),
   };
-  // Remove any older request for the same portfolio item so resubmission replaces it.
   const others = getVerificationRequests().filter((r) => r.portfolioItemId !== item.portfolioItemId);
   saveRequests([newRequest, ...others]);
+
+  notifyAllLecturers({
+    type: 'verification_submitted',
+    title: 'New portfolio verification request',
+    message: `${item.studentName} submitted "${item.projectTitle}" for review.`,
+    link: '/lecturer/dashboard',
+  });
+
   return newRequest;
 }
 
@@ -125,5 +134,21 @@ export function reviewVerification(
       awardedAt: new Date().toISOString(),
     };
     saveBadges([badge, ...getBadges()]);
+
+    addNotification({
+      recipientEmail: request.studentEmail,
+      type: 'verification_reviewed',
+      title: 'Portfolio project verified!',
+      message: `"${request.projectTitle}" was approved by ${lecturerName}. You earned a badge.`,
+      link: '/profile',
+    });
+  } else {
+    addNotification({
+      recipientEmail: request.studentEmail,
+      type: 'verification_reviewed',
+      title: 'Changes requested on your submission',
+      message: `${lecturerName} requested changes on "${request.projectTitle}".`,
+      link: '/portfolio',
+    });
   }
 }

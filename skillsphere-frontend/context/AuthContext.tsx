@@ -7,6 +7,7 @@ import {
   findUser,
   addUser,
 } from '@/lib/users-data';
+import { notifyAllAdmins } from '@/lib/notifications-data';
 
 interface AuthResult {
   success: boolean;
@@ -89,6 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addUser(newUser);
 
     if (status === 'pending_approval') {
+      notifyAllAdmins({
+        type: 'lecturer_signup',
+        title: 'New lecturer signup',
+        message: `${fullName} (${email}) signed up as a lecturer and needs approval.`,
+        link: '/admin/dashboard',
+      });
       return { success: true, user: newUser, pendingApproval: true };
     }
 

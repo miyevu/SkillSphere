@@ -13,9 +13,10 @@ import {
   getProfile,
   saveProfile,
 } from '@/lib/profile-data';
-import { getBadgesForStudent, Badge } from '@/lib/badges-data';
 import { getStudentProgress, calculateProgress } from '@/lib/student-data';
 import { getPortfolioItems, PortfolioItem } from '@/lib/portfolio-data';
+import { getBadgesForStudent, Badge } from '@/lib/badges-data';
+import { getReviewsForUser, getAverageRating, Review } from '@/lib/reviews-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
@@ -51,12 +52,17 @@ export default function ProfilePage() {
   const { user, isLoading } = useAuth();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [editing, setEditing] = useState(false);
-  const [badges, setBadges] = useState<Badge[]>([]);
   const [draft, setDraft] = useState<StudentProfile | null>(null);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
-    if (user) setProfile(getProfile(user.fullName));
+    if (user) {
+      setProfile(getProfile(user.fullName));
+      setBadges(getBadgesForStudent(user.email));
+      setReviews(getReviewsForUser(user.email));
+    }
     setPortfolioItems(getPortfolioItems());
   }, [user]);
 
@@ -77,6 +83,7 @@ export default function ProfilePage() {
   );
   const featuredPortfolioItems = portfolioItems.filter((p) => p.featured);
   const displayedPortfolioItems = featuredPortfolioItems.length > 0 ? featuredPortfolioItems : portfolioItems.slice(0, 3);
+  const ratingSummary = getAverageRating(user.email);
 
   const startEditing = () => {
     setDraft(profile);
@@ -156,10 +163,18 @@ export default function ProfilePage() {
       'COMPLETED COURSES',
       completedCourses.length ? completedCourses.map((c) => `- ${c.skillTitle}`).join('\n') : '(None completed yet)',
       '',
+      'VERIFIED BADGES',
+      badges.length ? badges.map((b) => `- ${b.title} (verified by ${b.awardedByName})`).join('\n') : '(No badges yet)',
+      '',
       'PORTFOLIO PROJECTS',
       portfolioItems.length
         ? portfolioItems.map((p) => `- ${p.title}${p.category ? ` (${p.category})` : ''}`).join('\n')
         : '(No portfolio projects yet)',
+      '',
+      'REVIEWS',
+      reviews.length
+        ? `Average rating: ${ratingSummary.average} (${ratingSummary.count} review${ratingSummary.count !== 1 ? 's' : ''})`
+        : '(No reviews yet)',
       '',
       'AVAILABILITY',
       `${AVAILABILITY_LABELS[profile.availability].label} — ${WORK_TYPE_LABELS[profile.preferredWorkType]}`,
@@ -241,6 +256,12 @@ export default function ProfilePage() {
                   <VisibilityIcon className="w-3 h-3" />
                   {VISIBILITY_LABELS[view.visibility].label}
                 </span>
+                {reviews.length > 0 && (
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-50 text-yellow-800 flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                    {ratingSummary.average} ({ratingSummary.count})
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -387,15 +408,32 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Badges — still not built */}
+        {/* Verified Badges */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
-          <h2 className="text-lg font-bold text-slate-900 mb-2">Verified Badges</h2>
-          <p className="text-sm text-slate-500">
-            No badges yet. Badges are earned once a lecturer verifies a completed practical project — this workflow isn't built yet.
-          </p>
+          <div className="flex items-center gap-2 mb-4">
+            <Award className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold text-slate-900">Verified Badges</h2>
+          </div>
+          {badges.length > 0 ? (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {badges.map((badge) => (
+                <div key={badge.id} className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
+                  <Award className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-slate-900">{badge.title}</p>
+                    <p className="text-xs text-slate-500">Verified by {badge.awardedByName}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No badges yet. Submit a portfolio project for lecturer verification to earn one.
+            </p>
+          )}
         </div>
 
-        {/* Portfolio Projects — now wired to real data */}
+        {/* Portfolio Projects */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">Portfolio Projects</h2>
@@ -426,22 +464,61 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Marketplace — still not built */}
+        {/* Freelance Services */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-2">
             <Briefcase className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold text-slate-900">Freelance Services</h2>
           </div>
-          <p className="text-sm text-slate-500">No services listed yet — the marketplace module isn't built yet.</p>
+          <p className="text-sm text-slate-500">
+            <Link href="/marketplace/my" className="text-primary hover:underline">Manage your services and jobs</Link> in the marketplace.
+          </p>
         </div>
 
-        {/* Reviews — still not built */}
+        {/* Reviews & Ratings — now wired to real data */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-4">
             <Star className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold text-slate-900">Reviews & Ratings</h2>
           </div>
-          <p className="text-sm text-slate-500">No reviews yet — reviews unlock after your first completed engagement.</p>
+          {reviews.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-slate-900">{ratingSummary.average}</span>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      className={`w-4 h-4 ${n <= Math.round(ratingSummary.average) ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-slate-500">
+                  ({reviews.length} review{reviews.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+              <div className="space-y-3">
+                {reviews.map((review) => (
+                  <div key={review.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-slate-900">{review.reviewerName}</p>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star
+                            key={n}
+                            className={`w-3.5 h-3.5 ${n <= review.overallRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {review.comment && <p className="text-sm text-slate-600">{review.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No reviews yet — reviews unlock after your first completed engagement.</p>
+          )}
         </div>
 
         {/* Availability & work preferences */}

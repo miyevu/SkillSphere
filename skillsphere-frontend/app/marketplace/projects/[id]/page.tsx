@@ -5,11 +5,15 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import {
-  getProject, Project, updateMilestoneStatus, addMilestone, addProjectMessage, updateProject,
+  getProject, Project, updateMilestoneStatus, addMilestone, addProjectMessage,
 } from '@/lib/marketplace-data';
+import {
+  Review, getReviewForProjectByReviewer, getReviewsForProject, addReview, respondToReview,
+} from '@/lib/reviews-data';
+import StarRatingInput from '@/components/marketplace/StarRatingInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/Input';
-import { CheckCircle, Circle, Send, Plus, DollarSign, Calendar } from 'lucide-react';
+import { CheckCircle, Circle, Send, Plus, DollarSign, Calendar, Star } from 'lucide-react';
 
 export default function ProjectWorkspacePage() {
   const params = useParams();
@@ -20,7 +24,21 @@ export default function ProjectWorkspacePage() {
   const [milestoneDate, setMilestoneDate] = useState('');
   const [deliverableDrafts, setDeliverableDrafts] = useState<Record<string, string>>({});
 
-  const refresh = () => setProject(getProject(params.id as string));
+  const [projectReviews, setProjectReviews] = useState<Review[]>([]);
+  const [reviewForm, setReviewForm] = useState({
+    overallRating: 0,
+    qualityRating: 0,
+    communicationRating: 0,
+    timelinessRating: 0,
+    professionalismRating: 0,
+    comment: '',
+  });
+  const [responseDraft, setResponseDraft] = useState('');
+
+  const refresh = () => {
+    setProject(getProject(params.id as string));
+    setProjectReviews(getReviewsForProject(params.id as string));
+  };
 
   useEffect(() => {
     refresh();
@@ -50,6 +68,8 @@ export default function ProjectWorkspacePage() {
 
   const isFreelancer = user.email === project.freelancerEmail;
   const isClient = user.email === project.clientEmail;
+  const otherPartyEmail = isClient ? project.freelancerEmail : project.clientEmail;
+  const otherPartyName = isClient ? project.freelancerName : project.clientName;
 
   const handleMarkDelivered = (milestoneId: string) => {
     const link = deliverableDrafts[milestoneId] || '';
@@ -60,11 +80,6 @@ export default function ProjectWorkspacePage() {
   const handleApprove = (milestoneId: string) => {
     updateMilestoneStatus(project.id, milestoneId, 'approved');
     refresh();
-    const updated = getProject(project.id);
-    if (updated && updated.milestones.every((m) => m.status === 'approved')) {
-      updateProject(project.id, { status: 'completed' });
-      refresh();
-    }
   };
 
   const handleAddMilestone = () => {
@@ -79,6 +94,37 @@ export default function ProjectWorkspacePage() {
     if (!messageText.trim()) return;
     addProjectMessage(project.id, user.email, user.fullName, messageText);
     setMessageText('');
+    refresh();
+  };
+
+  const myReview = getReviewForProjectByReviewer(project.id, user.email);
+  const reviewOfMe = projectReviews.find((r) => r.revieweeEmail === user.email);
+
+  const handleSubmitReview = () => {
+    if (reviewForm.overallRating === 0) return;
+    addReview({
+      projectId: project.id,
+      reviewerEmail: user.email,
+      reviewerName: user.fullName,
+      revieweeEmail: otherPartyEmail,
+      revieweeName: otherPartyName,
+      ...reviewForm,
+    });
+    setReviewForm({
+      overallRating: 0,
+      qualityRating: 0,
+      communicationRating: 0,
+      timelinessRating: 0,
+      professionalismRating: 0,
+      comment: '',
+    });
+    refresh();
+  };
+
+  const handleRespondToReview = () => {
+    if (!reviewOfMe || !responseDraft.trim()) return;
+    respondToReview(reviewOfMe.id, responseDraft);
+    setResponseDraft('');
     refresh();
   };
 
@@ -169,6 +215,97 @@ export default function ProjectWorkspacePage() {
             </div>
           )}
         </div>
+
+        {project.status === 'completed' && (
+          <div className="bg-white border rounded-lg p-6 space-y-6">
+            <div className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-primary" />
+              <h2 className="font-bold text-slate-900">Review</h2>
+            </div>
+
+            {!myReview ? (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">Rate your experience working with {otherPartyName}.</p>
+                <StarRatingInput
+                  label="Overall Rating"
+                  value={reviewForm.overallRating}
+                  onChange={(v) => setReviewForm((prev) => ({ ...prev, overallRating: v }))}
+                />
+                <StarRatingInput
+                  label="Quality"
+                  value={reviewForm.qualityRating}
+                  onChange={(v) => setReviewForm((prev) => ({ ...prev, qualityRating: v }))}
+                />
+                <StarRatingInput
+                  label="Communication"
+                  value={reviewForm.communicationRating}
+                  onChange={(v) => setReviewForm((prev) => ({ ...prev, communicationRating: v }))}
+                />
+                <StarRatingInput
+                  label="Timeliness"
+                  value={reviewForm.timelinessRating}
+                  onChange={(v) => setReviewForm((prev) => ({ ...prev, timelinessRating: v }))}
+                />
+                <StarRatingInput
+                  label="Professionalism"
+                  value={reviewForm.professionalismRating}
+                  onChange={(v) => setReviewForm((prev) => ({ ...prev, professionalismRating: v }))}
+                />
+                <textarea
+                  value={reviewForm.comment}
+                  onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
+                  rows={3}
+                  placeholder="Write a review..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Button onClick={handleSubmitReview} disabled={reviewForm.overallRating === 0}>
+                  Submit Review
+                </Button>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-4">
+                <p className="text-xs text-slate-500 mb-2">Your review of {otherPartyName}</p>
+                <div className="flex items-center gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} className={`w-4 h-4 ${n <= myReview.overallRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                  ))}
+                </div>
+                {myReview.comment && <p className="text-sm text-slate-700">{myReview.comment}</p>}
+              </div>
+            )}
+
+            {reviewOfMe && (
+              <div className="border rounded-lg p-4 bg-primary/5">
+                <p className="text-xs text-slate-500 mb-2">{otherPartyName}'s review of you</p>
+                <div className="flex items-center gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} className={`w-4 h-4 ${n <= reviewOfMe.overallRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                  ))}
+                </div>
+                {reviewOfMe.comment && <p className="text-sm text-slate-700 mb-3">{reviewOfMe.comment}</p>}
+
+                {reviewOfMe.response ? (
+                  <div className="bg-white border rounded-lg p-3 mt-2">
+                    <p className="text-xs text-slate-500 mb-1">Your response</p>
+                    <p className="text-sm text-slate-700">{reviewOfMe.response}</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={responseDraft}
+                      onChange={(e) => setResponseDraft(e.target.value)}
+                      placeholder="Respond to this review..."
+                      className="flex-1"
+                    />
+                    <Button size="sm" onClick={handleRespondToReview} disabled={!responseDraft.trim()}>
+                      Respond
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="bg-white border rounded-lg p-6">
           <h2 className="font-bold text-slate-900 mb-4">Messages</h2>

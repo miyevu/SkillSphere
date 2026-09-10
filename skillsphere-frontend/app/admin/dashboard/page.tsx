@@ -20,7 +20,9 @@ import {
   JobPost,
 } from '@/lib/marketplace-data';
 import { getBadges } from '@/lib/badges-data';
+import { addNotification } from '@/lib/notifications-data';
 import { Button } from '@/components/ui/button';
+import NotificationBell from '@/components/notifications/NotificationBell';
 import {
   LogOut, Users, ShieldCheck, ShieldOff, Trash2, LayoutDashboard,
   GraduationCap, Briefcase, Award, ClipboardList,
@@ -93,16 +95,37 @@ export default function AdminDashboardPage() {
 
   const filteredUsers = userFilter === 'all' ? users : users.filter((u) => u.role === userFilter);
 
-  const handleApprove = (email: string) => {
-    updateUserStatus(email, 'active');
+  const handleApprove = (targetUser: RegisteredUser) => {
+    updateUserStatus(targetUser.email, 'active');
+    addNotification({
+      recipientEmail: targetUser.email,
+      type: 'account_approved',
+      title: 'Your lecturer account was approved',
+      message: 'You can now log in to SkillSphere.',
+      link: '/auth/login',
+    });
     refresh();
   };
-  const handleReject = (email: string) => {
-    updateUserStatus(email, 'rejected');
+  const handleReject = (targetUser: RegisteredUser) => {
+    updateUserStatus(targetUser.email, 'rejected');
+    addNotification({
+      recipientEmail: targetUser.email,
+      type: 'account_rejected',
+      title: 'Your lecturer application was not approved',
+      message: 'Contact an administrator for details.',
+      link: '/auth/login',
+    });
     refresh();
   };
-  const handleSuspend = (email: string) => {
-    updateUserStatus(email, 'suspended');
+  const handleSuspend = (targetUser: RegisteredUser) => {
+    updateUserStatus(targetUser.email, 'suspended');
+    addNotification({
+      recipientEmail: targetUser.email,
+      type: 'account_suspended',
+      title: 'Your account has been suspended',
+      message: 'Contact an administrator for details.',
+      link: '/auth/login',
+    });
     refresh();
   };
   const handleReactivate = (email: string) => {
@@ -135,8 +158,9 @@ export default function AdminDashboardPage() {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               SkillSphere — Admin
             </h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <p className="hidden md:block text-sm text-slate-600">{user.fullName}</p>
+              <NotificationBell />
               <Button
                 onClick={handleLogout}
                 variant="outline"
@@ -259,14 +283,14 @@ export default function AdminDashboardPage() {
                         <p className="text-xs text-slate-500">{u.email}</p>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => handleApprove(u.email)} className="gap-1">
+                        <Button size="sm" onClick={() => handleApprove(u)} className="gap-1">
                           <ShieldCheck className="w-3.5 h-3.5" />
                           Approve
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleReject(u.email)}
+                          onClick={() => handleReject(u)}
                           className="gap-1 text-destructive hover:text-destructive"
                         >
                           <ShieldOff className="w-3.5 h-3.5" />
@@ -331,7 +355,7 @@ export default function AdminDashboardPage() {
                           {u.email === user.email ? (
                             <span className="text-xs text-slate-400">You</span>
                           ) : u.status === 'active' ? (
-                            <Button size="sm" variant="ghost" onClick={() => handleSuspend(u.email)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Button size="sm" variant="ghost" onClick={() => handleSuspend(u)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
                               Suspend
                             </Button>
                           ) : (u.status === 'suspended' || u.status === 'rejected') ? (
