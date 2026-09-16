@@ -61,12 +61,10 @@ export default function LessonPage() {
   const completed = completedIds.includes(lesson.id);
 
   const toggleComplete = async () => {
-    if (completed) {
-      await markLessonIncomplete(skill.id, lesson.id);
-    } else {
-      await markLessonComplete(skill.id, lesson.id);
-    }
-    refresh();
+    const success = completed
+      ? await markLessonIncomplete(skill.id, lesson.id)
+      : await markLessonComplete(skill.id, lesson.id);
+    if (success) refresh();
   };
 
   const goToNext = async () => {

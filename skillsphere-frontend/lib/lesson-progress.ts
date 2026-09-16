@@ -25,18 +25,20 @@ export async function isLessonComplete(skillId: string, lessonId: string): Promi
   return ids.includes(lessonId);
 }
 
-export async function markLessonComplete(skillId: string, lessonId: string): Promise<void> {
-  await fetch('/api/lesson-progress', {
+export async function markLessonComplete(skillId: string, lessonId: string): Promise<boolean> {
+  const res = await fetch('/api/lesson-progress', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skillId, lessonId, completed: true }),
   });
+  return res.ok;
 }
 
-export async function markLessonIncomplete(skillId: string, lessonId: string): Promise<void> {
-  await fetch('/api/lesson-progress', {
+export async function markLessonIncomplete(skillId: string, lessonId: string): Promise<boolean> {
+  const res = await fetch('/api/lesson-progress', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skillId, lessonId, completed: false }),
   });
+  return res.ok;
 }

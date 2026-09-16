@@ -1,15 +1,21 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { skillsData, categories } from '@/lib/skills-data';
 import SkillCard from '@/components/skills/SkillCard';
 import SearchFilters from '@/components/skills/SearchFilters';
-import { BookOpen } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { BookOpen, ArrowLeft } from 'lucide-react';
 
 export default function SkillsPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Skills');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+
+  const backHref = user ? '/dashboard' : '/';
+  const backLabel = user ? 'Back to Dashboard' : 'Back to Home';
 
   // Filter skills based on search, category, and difficulty
   const filteredSkills = useMemo(() => {
@@ -48,7 +54,13 @@ export default function SkillsPage() {
               <BookOpen className="w-6 h-6 text-primary" />
               <span className="text-2xl font-bold text-primary">SkillSphere</span>
             </div>
-            <span className="text-sm text-muted-foreground">Browse Skills</span>
+            <Link
+              href={backHref}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {backLabel}
+            </Link>
           </div>
         </div>
       </nav>
