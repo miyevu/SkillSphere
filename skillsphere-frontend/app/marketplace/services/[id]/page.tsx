@@ -16,7 +16,7 @@ export default function ServiceDetailPage() {
   const [hiring, setHiring] = useState(false);
 
   useEffect(() => {
-    setListing(getServiceListing(params.id as string));
+    getServiceListing(params.id as string).then((l) => setListing(l ?? null));
   }, [params.id]);
 
   if (listing === undefined) return null;
@@ -34,14 +34,15 @@ export default function ServiceDetailPage() {
 
   const isOwner = user?.email === listing.studentEmail;
 
-  const handleHire = (pkg: ServicePackage) => {
+  const handleHire = async (pkg: ServicePackage) => {
     if (!user) {
       router.push('/auth/login');
       return;
     }
     setHiring(true);
-    const project = hireFromListing(listing, pkg, user.email, user.fullName);
-    router.push(`/marketplace/projects/${project.id}`);
+    const project = await hireFromListing(listing, pkg);
+    setHiring(false);
+    if (project) router.push(`/marketplace/projects/${project.id}`);
   };
 
   return (

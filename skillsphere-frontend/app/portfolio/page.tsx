@@ -67,8 +67,8 @@ export default function PortfolioPage() {
   const [skillsText, setSkillsText] = useState('');
   const [toolsText, setToolsText] = useState('');
 
-  const refresh = () => {
-    const allItems = getPortfolioItems();
+  const refresh = async () => {
+    const allItems = await getPortfolioItems();
     setItems(allItems);
     const verMap: Record<string, VerificationRequest | undefined> = {};
     allItems.forEach((item) => {
@@ -159,7 +159,7 @@ export default function PortfolioPage() {
     updateDraft('mediaLinks', draft.mediaLinks.filter((l) => l.id !== id));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!draft.title.trim()) return;
 
     const finalDraft = {
@@ -169,26 +169,27 @@ export default function PortfolioPage() {
     };
 
     if (editingId) {
-      updatePortfolioItem(editingId, finalDraft);
+      await updatePortfolioItem(editingId, finalDraft);
     } else {
-      addPortfolioItem(finalDraft);
+      await addPortfolioItem(finalDraft);
     }
-    refresh();
+    await refresh();
     closeForm();
   };
 
-  const handleDelete = (id: string) => {
-    deletePortfolioItem(id);
-    refresh();
+  const handleDelete = async (id: string) => {
+    await deletePortfolioItem(id);
+    await refresh();
   };
 
-  const handleToggleFeatured = (id: string) => {
-    toggleFeatured(id);
-    refresh();
+  const handleToggleFeatured = async (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    await toggleFeatured(id, item.featured);
+    await refresh();
   };
-
-  const handleSubmitForVerification = (item: PortfolioItem) => {
-    submitForVerification({
+  const handleSubmitForVerification = async (item: PortfolioItem) => {
+    await submitForVerification({
       portfolioItemId: item.id,
       studentEmail: user.email,
       studentName: user.fullName,
@@ -196,7 +197,7 @@ export default function PortfolioPage() {
       projectDescription: item.description,
       projectLink: item.projectLink,
     });
-    refresh();
+    await refresh();
   };
 
   const filteredItems =

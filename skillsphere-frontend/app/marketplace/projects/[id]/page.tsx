@@ -35,9 +35,10 @@ export default function ProjectWorkspacePage() {
   });
   const [responseDraft, setResponseDraft] = useState('');
 
-  const refresh = () => {
-    setProject(getProject(params.id as string));
-    setProjectReviews(getReviewsForProject(params.id as string));
+  const refresh = async () => {
+    const p = await getProject(params.id as string);
+    setProject(p ?? null);
+    if (p) setProjectReviews(await getReviewsForProject(p.id));
   };
 
   useEffect(() => {
@@ -68,48 +69,40 @@ export default function ProjectWorkspacePage() {
 
   const isFreelancer = user.email === project.freelancerEmail;
   const isClient = user.email === project.clientEmail;
-  const otherPartyEmail = isClient ? project.freelancerEmail : project.clientEmail;
   const otherPartyName = isClient ? project.freelancerName : project.clientName;
 
-  const handleMarkDelivered = (milestoneId: string) => {
+  const handleMarkDelivered = async (milestoneId: string) => {
     const link = deliverableDrafts[milestoneId] || '';
-    updateMilestoneStatus(project.id, milestoneId, 'delivered', link);
+    await updateMilestoneStatus(project.id, milestoneId, 'delivered', link);
     refresh();
   };
 
-  const handleApprove = (milestoneId: string) => {
-    updateMilestoneStatus(project.id, milestoneId, 'approved');
+  const handleApprove = async (milestoneId: string) => {
+    await updateMilestoneStatus(project.id, milestoneId, 'approved');
     refresh();
   };
 
-  const handleAddMilestone = () => {
+  const handleAddMilestone = async () => {
     if (!milestoneTitle.trim() || !milestoneDate) return;
-    addMilestone(project.id, milestoneTitle, milestoneDate);
+    await addMilestone(project.id, milestoneTitle, milestoneDate);
     setMilestoneTitle('');
     setMilestoneDate('');
     refresh();
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!messageText.trim()) return;
-    addProjectMessage(project.id, user.email, user.fullName, messageText);
+    await addProjectMessage(project.id, messageText);
     setMessageText('');
     refresh();
   };
 
-  const myReview = getReviewForProjectByReviewer(project.id, user.email);
-  const reviewOfMe = projectReviews.find((r) => r.revieweeEmail === user.email);
+  const myReview = getReviewForProjectByReviewerSync(projectReviews, user.id);
+  const reviewOfMe = projectReviews.find((r) => r.revieweeId === user.id);
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (reviewForm.overallRating === 0) return;
-    addReview({
-      projectId: project.id,
-      reviewerEmail: user.email,
-      reviewerName: user.fullName,
-      revieweeEmail: otherPartyEmail,
-      revieweeName: otherPartyName,
-      ...reviewForm,
-    });
+    await addReview({ projectId: project.id, ...reviewForm });
     setReviewForm({
       overallRating: 0,
       qualityRating: 0,
@@ -121,9 +114,9 @@ export default function ProjectWorkspacePage() {
     refresh();
   };
 
-  const handleRespondToReview = () => {
+  const handleRespondToReview = async () => {
     if (!reviewOfMe || !responseDraft.trim()) return;
-    respondToReview(reviewOfMe.id, responseDraft);
+    await respondToReview(reviewOfMe.id, responseDraft);
     setResponseDraft('');
     refresh();
   };
@@ -333,4 +326,8 @@ export default function ProjectWorkspacePage() {
       </div>
     </div>
   );
+}
+
+function getReviewForProjectByReviewerSync(reviews: Review[], reviewerId: string): Review | undefined {
+  return reviews.find((r) => r.reviewerId === reviewerId);
 }

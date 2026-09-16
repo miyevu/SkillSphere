@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 
 function redirectPathForRole(role?: string) {
-  if (role === 'lecturer') return '/lecturer/dashboard';
-  if (role === 'admin') return '/admin/dashboard';
+  if (role === 'LECTURER') return '/lecturer/dashboard';
+  if (role === 'ADMIN') return '/admin/dashboard';
   return '/dashboard';
 }
 
@@ -57,8 +57,11 @@ export default function LoginForm() {
     return newErrors;
   };
 
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleSubmit fired');
 
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
@@ -66,8 +69,14 @@ export default function LoginForm() {
       return;
     }
 
+    // setIsLoading(true);
+    // const result = await login(formData.email, formData.password);
+    // setIsLoading(false);
     setIsLoading(true);
+    console.log('calling login()...');
     const result = await login(formData.email, formData.password);
+    console.log('login() returned:', result);
+    console.log('document.cookie right after login:', document.cookie);
     setIsLoading(false);
 
     if (!result.success) {

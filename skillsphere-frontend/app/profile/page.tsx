@@ -13,7 +13,7 @@ import {
   getProfile,
   saveProfile,
 } from '@/lib/profile-data';
-import { getStudentProgress, calculateProgress } from '@/lib/student-data';
+import { getStudentProgress, calculateProgress, StudentProgress } from '@/lib/student-data';
 import { getPortfolioItems, PortfolioItem } from '@/lib/portfolio-data';
 import { getBadgesForStudent, Badge } from '@/lib/badges-data';
 import { getReviewsForUser, getAverageRating, Review } from '@/lib/reviews-data';
@@ -56,17 +56,26 @@ export default function ProfilePage() {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [progress, setProgress] = useState<StudentProgress | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setProfile(getProfile(user.fullName));
-      setBadges(getBadgesForStudent(user.email));
-      setReviews(getReviewsForUser(user.email));
-    }
-    setPortfolioItems(getPortfolioItems());
+    if (!user) return;
+
+    setProfile(getProfile(user.fullName));
+    setBadges(getBadgesForStudent(user.email));
+
+    Promise.all([getReviewsForUser(user.id), getPortfolioItems(), getStudentProgress()]).then(
+      ([reviewsData, portfolioData, progressData]) => {
+        setReviews(reviewsData);
+        setPortfolioItems(portfolioData);
+        setProgress(progressData);
+        setDataLoading(false);
+      }
+    );
   }, [user]);
 
-  if (isLoading || !user || !profile) {
+  if (isLoading || !user || !profile || dataLoading || !progress) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -77,13 +86,12 @@ export default function ProfilePage() {
     );
   }
 
-  const progress = getStudentProgress(user.email);
   const completedCourses = progress.enrolledCourses.filter(
     (c) => c.totalLessons > 0 && c.completedLessons === c.totalLessons
   );
   const featuredPortfolioItems = portfolioItems.filter((p) => p.featured);
   const displayedPortfolioItems = featuredPortfolioItems.length > 0 ? featuredPortfolioItems : portfolioItems.slice(0, 3);
-  const ratingSummary = getAverageRating(user.email);
+  const ratingSummary = getAverageRating(reviews);
 
   const startEditing = () => {
     setDraft(profile);
@@ -232,7 +240,6 @@ export default function ProfilePage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        {/* Header */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-start gap-6">
             <div className="text-6xl">{view.photo}</div>
@@ -267,7 +274,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Academic info */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Academic Information</h2>
           {editing ? (
@@ -299,7 +305,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Bio */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">About</h2>
           {editing ? (
@@ -315,7 +320,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Skills */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">Skills</h2>
@@ -360,7 +364,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Learning tracks — real data */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">
             <BookOpen className="w-5 h-5 text-primary" />
@@ -388,7 +391,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Completed courses */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">
             <Award className="w-5 h-5 text-primary" />
@@ -408,7 +410,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Verified Badges */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">
             <Award className="w-5 h-5 text-primary" />
@@ -433,7 +434,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Portfolio Projects */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">Portfolio Projects</h2>
@@ -464,7 +464,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Freelance Services */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-2">
             <Briefcase className="w-5 h-5 text-primary" />
@@ -475,7 +474,6 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Reviews & Ratings — now wired to real data */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">
             <Star className="w-5 h-5 text-primary" />
@@ -521,7 +519,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Availability & work preferences */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Availability & Work Preferences</h2>
           {editing ? (
@@ -567,7 +564,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* External links */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -607,7 +603,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Visibility */}
         <div className="bg-white border rounded-lg p-6 sm:p-8">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Profile Visibility</h2>
           {editing ? (

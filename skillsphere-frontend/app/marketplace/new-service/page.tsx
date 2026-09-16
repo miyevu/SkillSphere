@@ -34,6 +34,8 @@ export default function NewServicePage() {
   ]);
   const [sampleLinks, setSampleLinks] = useState<SampleLink[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   if (isLoading) return null;
   if (!user) {
@@ -63,12 +65,34 @@ export default function NewServicePage() {
     setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   const removeFaq = (id: string) => setFaqs((prev) => prev.filter((f) => f.id !== id));
 
-  const handleSubmit = () => {
-    if (!title.trim() || packages.length === 0) return;
+  // const handleSubmit = async () => {
+  //   if (!title.trim() || packages.length === 0) return;
+  //   setSubmitting(true);
 
-    const listing = addServiceListing({
-      studentEmail: user.email,
-      studentName: user.fullName,
+  //   const listing = await addServiceListing({
+  //     title,
+  //     category,
+  //     description,
+  //     skills: skillsText.split(',').map((s) => s.trim()).filter(Boolean),
+  //     tools: toolsText.split(',').map((s) => s.trim()).filter(Boolean),
+  //     packages,
+  //     sampleLinks,
+  //     faqs,
+  //     availability,
+  //     location,
+  //     terms,
+  //   });
+
+  //   setSubmitting(false);
+  //   if (listing) router.push(`/marketplace/services/${listing.id}`);
+  // };
+
+    const handleSubmit = async () => {
+    if (!title.trim() || packages.length === 0) return;
+    setSubmitting(true);
+    setError('');
+
+    const listing = await addServiceListing({
       title,
       category,
       description,
@@ -82,7 +106,12 @@ export default function NewServicePage() {
       terms,
     });
 
-    router.push(`/marketplace/services/${listing.id}`);
+    setSubmitting(false);
+    if (listing) {
+      router.push(`/marketplace/services/${listing.id}`);
+    } else {
+      setError('Failed to publish — please make sure you are logged in, then try again.');
+    }
   };
 
   return (
@@ -163,7 +192,6 @@ export default function NewServicePage() {
           </div>
         </div>
 
-        {/* Packages */}
         <div className="bg-white border rounded-lg p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-slate-900">Service Packages</h2>
@@ -209,7 +237,6 @@ export default function NewServicePage() {
           ))}
         </div>
 
-        {/* Sample work */}
         <div className="bg-white border rounded-lg p-6 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-slate-900">Sample Work</h2>
@@ -230,7 +257,6 @@ export default function NewServicePage() {
           {sampleLinks.length === 0 && <p className="text-xs text-slate-500">Link to your best relevant portfolio work.</p>}
         </div>
 
-        {/* FAQs */}
         <div className="bg-white border rounded-lg p-6 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-slate-900">Frequently Asked Questions</h2>
@@ -252,10 +278,22 @@ export default function NewServicePage() {
           ))}
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={handleSubmit} disabled={!title.trim()} className="gap-2">
+        {/* <div className="flex justify-end">
+          <Button onClick={handleSubmit} disabled={!title.trim() || submitting} className="gap-2">
             <Save className="w-4 h-4" />
-            Publish Service
+            {submitting ? 'Publishing...' : 'Publish Service'}
+          </Button>
+        </div> */}
+        {error && (
+          <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm border border-destructive/20">
+            {error}
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button onClick={handleSubmit} disabled={!title.trim() || submitting} className="gap-2">
+            <Save className="w-4 h-4" />
+            {submitting ? 'Publishing...' : 'Publish Service'}
           </Button>
         </div>
       </div>

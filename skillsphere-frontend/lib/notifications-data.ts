@@ -1,6 +1,10 @@
 'use client';
 
-import { getRegistry } from './users-data';
+// ---------- LEGACY (localStorage) — still used by badges-data.ts, assignments-data.ts,
+// AuthContext.tsx (lecturer signup), and admin/dashboard/page.tsx (approve/reject/suspend)
+// until those modules are migrated to the database in a future round. These notifications
+// will NOT appear in the bell/notifications page below, which now reads from the database —
+// that's a known, temporary gap until those modules move over too.
 
 export type NotificationType =
   | 'verification_submitted'
@@ -21,7 +25,7 @@ export type NotificationType =
   | 'account_rejected'
   | 'account_suspended';
 
-export interface Notification {
+interface LegacyNotification {
   id: string;
   recipientEmail: string;
   type: NotificationType;
@@ -32,34 +36,24 @@ export interface Notification {
   createdAt: string;
 }
 
-const NOTIFICATIONS_KEY = 'skillsphere_notifications';
+const LEGACY_NOTIFICATIONS_KEY = 'skillsphere_notifications';
 
-function generateId() {
+function legacyGenerateId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function getNotifications(): Notification[] {
+function getLegacyNotifications(): LegacyNotification[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(NOTIFICATIONS_KEY);
-    return raw ? (JSON.parse(raw) as Notification[]) : [];
+    const raw = localStorage.getItem(LEGACY_NOTIFICATIONS_KEY);
+    return raw ? (JSON.parse(raw) as LegacyNotification[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveNotifications(items: Notification[]) {
-  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(items));
-}
-
-export function getNotificationsForUser(email: string): Notification[] {
-  return getNotifications()
-    .filter((n) => n.recipientEmail === email)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-export function getUnreadCount(email: string): number {
-  return getNotifications().filter((n) => n.recipientEmail === email && !n.read).length;
+function saveLegacyNotifications(items: LegacyNotification[]) {
+  localStorage.setItem(LEGACY_NOTIFICATIONS_KEY, JSON.stringify(items));
 }
 
 export function addNotification(input: {
@@ -69,45 +63,71 @@ export function addNotification(input: {
   message: string;
   link: string;
 }) {
-  const newNotification: Notification = {
+  const newNotification: LegacyNotification = {
     ...input,
-    id: generateId(),
+    id: legacyGenerateId(),
     read: false,
     createdAt: new Date().toISOString(),
   };
-  saveNotifications([newNotification, ...getNotifications()]);
+  saveLegacyNotifications([newNotification, ...getLegacyNotifications()]);
 }
 
-export function markAsRead(id: string) {
-  saveNotifications(getNotifications().map((n) => (n.id === id ? { ...n, read: true } : n)));
+export function notifyAllLecturers(input: { type: NotificationType; title: string; message: string; link: string }) {
+  // Reads the legacy user registry — this only reaches lecturers who exist there,
+  // which is now stale since real signups go through the database instead.
+  try {
+    const raw = localStorage.getItem('skillsphere_registered_users');
+    const registry: Array<{ email: string; role: string; status: string }> = raw ? JSON.parse(raw) : [];
+    registry
+      .filter((u) => u.role === 'lecturer' && u.status === 'active')
+      .forEach((lecturer) => addNotification({ ...input, recipientEmail: lecturer.email }));
+  } catch {
+    // no-op
+  }
 }
 
-export function markAllAsRead(email: string) {
-  saveNotifications(
-    getNotifications().map((n) => (n.recipientEmail === email ? { ...n, read: true } : n))
-  );
+export function notifyAllAdmins(input: { type: NotificationType; title: string; message: string; link: string }) {
+  try {
+    const raw = localStorage.getItem('skillsphere_registered_users');
+    const registry: Array<{ email: string; role: string }> = raw ? JSON.parse(raw) : [];
+    registry.filter((u) => u.role === 'admin').forEach((admin) => addNotification({ ...input, recipientEmail: admin.email }));
+  } catch {
+    // no-op
+  }
 }
 
-export function notifyAllLecturers(input: {
-  type: NotificationType;
+// ---------- CURRENT (database-backed) — used by NotificationBell and /notifications ----------
+
+export interface NotificationItem {
+  id: string;
+  type: string;
   title: string;
   message: string;
   link: string;
-}) {
-  const lecturers = getRegistry().filter((u) => u.role === 'lecturer' && u.status === 'active');
-  lecturers.forEach((lecturer) => {
-    addNotification({ ...input, recipientEmail: lecturer.email });
-  });
+  read: boolean;
+  createdAt: string;
 }
 
-export function notifyAllAdmins(input: {
-  type: NotificationType;
-  title: string;
-  message: string;
-  link: string;
-}) {
-  const admins = getRegistry().filter((u) => u.role === 'admin');
-  admins.forEach((admin) => {
-    addNotification({ ...input, recipientEmail: admin.email });
-  });
+async function fetchNotificationsData(): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
+  const res = await fetch('/api/notifications');
+  if (!res.ok) return { notifications: [], unreadCount: 0 };
+  return res.json();
+}
+
+export async function getNotificationsForUser(): Promise<NotificationItem[]> {
+  const data = await fetchNotificationsData();
+  return data.notifications;
+}
+
+export async function getUnreadCount(): Promise<number> {
+  const data = await fetchNotificationsData();
+  return data.unreadCount;
+}
+
+export async function markAsRead(id: string): Promise<void> {
+  await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+}
+
+export async function markAllAsRead(): Promise<void> {
+  await fetch('/api/notifications/read-all', { method: 'POST' });
 }

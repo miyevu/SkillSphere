@@ -15,7 +15,8 @@ import {
 } from '@/lib/assignments-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/Input';
-import { LogOut, CheckCircle, XCircle, ClipboardList, User, GraduationCap, ShieldCheck } from 'lucide-react';
+import AppHeader from '@/components/layout/AppHeader';
+import { CheckCircle, XCircle, ClipboardList, User, GraduationCap, ShieldCheck } from 'lucide-react';
 
 type Section = 'verification' | 'assignments';
 
@@ -38,7 +39,7 @@ export default function LecturerDashboardPage() {
     if (!isLoading) {
       if (!user) {
         router.push('/auth/login');
-      } else if (user.role !== 'lecturer') {
+      } else if (user.role !== 'LECTURER') {
         router.push('/dashboard');
       }
     }
@@ -53,7 +54,7 @@ export default function LecturerDashboardPage() {
     refresh();
   }, []);
 
-  if (isLoading || !user || user.role !== 'lecturer') {
+  if (isLoading || !user || user.role !== 'LECTURER') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -91,32 +92,7 @@ export default function LecturerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <nav className="bg-white border-b shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              SkillSphere — Lecturer
-            </h1>
-            <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-2 text-sm">
-                <User className="w-4 h-4 text-slate-600" />
-                <div>
-                  <p className="text-slate-600 text-xs">Logged in as</p>
-                  <p className="font-medium text-slate-900">{user.fullName}</p>
-                </div>
-              </div>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <AppHeader fullName={user.fullName} variant="lecturer" onLogout={handleLogout} />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         <div>
@@ -124,7 +100,6 @@ export default function LecturerDashboardPage() {
           <p className="text-slate-600">Review student work and provide feedback.</p>
         </div>
 
-        {/* Top-level section switcher */}
         <div className="flex gap-2">
           <button
             onClick={() => setSection('verification')}
@@ -146,7 +121,6 @@ export default function LecturerDashboardPage() {
           </button>
         </div>
 
-        {/* ---------- Portfolio Verification ---------- */}
         {section === 'verification' && (
           <>
             <div className="flex gap-2 border-b">
@@ -255,7 +229,6 @@ export default function LecturerDashboardPage() {
           </>
         )}
 
-        {/* ---------- Assignment Grading ---------- */}
         {section === 'assignments' && (
           <>
             <div className="flex gap-2 border-b">

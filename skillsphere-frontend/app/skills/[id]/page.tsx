@@ -1,23 +1,29 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { skillsData } from '@/lib/skills-data';
 import { isEnrolled, enrollInSkill } from '@/lib/enrollment';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, Users, Star, CheckCircle, BookOpen, Code, Award } from 'lucide-react';
+import { ArrowLeft, Clock, Users, Star, CheckCircle, BookOpen, Code, Award, ClipboardList } from 'lucide-react';
 
 export default function SkillDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const skillId = params.id as string;
   const skill = skillsData.find(s => s.id === skillId);
   const [enrolled, setEnrolled] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
   const [expandedModule, setExpandedModule] = useState<string | null>(skill?.modules[0]?.id || null);
 
   useEffect(() => {
-    if (skill) setEnrolled(isEnrolled(skill.id));
-  }, [skill]);
+    if (skill && user) {
+      isEnrolled(skill.id).then(setEnrolled);
+    }
+  }, [skill, user]);
 
   if (!skill) {
     return (
@@ -40,14 +46,21 @@ export default function SkillDetailPage() {
     advanced: 'bg-red-100 text-red-800'
   };
 
-  const handleEnroll = () => {
-    enrollInSkill(skill.id);
-    setEnrolled(true);
+  const handleEnroll = async () => {
+    if (!user) {
+      router.push(`/auth/login?next=/skills/${skill.id}`);
+      return;
+    }
+    setEnrolling(true);
+    const success = await enrollInSkill(skill.id);
+    setEnrolling(false);
+    if (success) {
+      setEnrolled(true);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      {/* Header */}
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <Link href="/skills" className="flex items-center gap-2 text-primary hover:underline mb-4">
@@ -70,17 +83,13 @@ export default function SkillDetailPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Course Info */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Overview */}
             <section>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Course Overview</h2>
               <p className="text-slate-700 leading-relaxed mb-4">{skill.fullDescription}</p>
               
-              {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-slate-50 p-4 rounded-lg border">
                   <div className="flex items-center gap-2 mb-1">
@@ -112,7 +121,6 @@ export default function SkillDetailPage() {
                 </div>
               </div>
 
-              {/* Rating */}
               <div className="flex items-center gap-2 text-lg">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -129,7 +137,6 @@ export default function SkillDetailPage() {
               </div>
             </section>
 
-            {/* Requirements */}
             <section>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Requirements</h2>
               <div className="space-y-2">
@@ -142,7 +149,6 @@ export default function SkillDetailPage() {
               </div>
             </section>
 
-            {/* Skills/Tags */}
             <section>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Skills You'll Learn</h2>
               <div className="flex flex-wrap gap-2">
@@ -157,7 +163,6 @@ export default function SkillDetailPage() {
               </div>
             </section>
 
-            {/* Curriculum */}
             <section>
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Course Curriculum</h2>
               <div className="space-y-3">
@@ -203,6 +208,13 @@ export default function SkillDetailPage() {
                             </div>
                           </Link>
                         ))}
+                        <Link
+                          href={`/skills/${skill.id}/assignments/${module.id}`}
+                          className="flex items-center gap-2 py-2 px-2 -mx-2 mt-1 rounded-md bg-primary/5 hover:bg-primary/10 transition-colors text-sm font-medium text-primary"
+                        >
+                          <ClipboardList className="w-4 h-4" />
+                          Module Assignment
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -211,9 +223,7 @@ export default function SkillDetailPage() {
             </section>
           </div>
 
-          {/* Right Column - Sidebar */}
           <div className="lg:col-span-1">
-            {/* Instructor Card */}
             <div className="bg-white border rounded-lg p-6 mb-6 sticky top-4">
               <h3 className="font-bold text-slate-900 mb-4">Instructor</h3>
               <div className="flex items-center gap-3 mb-4">
@@ -227,17 +237,20 @@ export default function SkillDetailPage() {
                 Experienced professional dedicated to helping students master this skill.
               </p>
               
-              {/* Enrollment Button */}
               <Button
                 onClick={handleEnroll}
                 className="w-full mb-3"
-                disabled={enrolled}
+                disabled={enrolled || enrolling || authLoading}
               >
                 {enrolled ? (
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     Enrolled
                   </div>
+                ) : enrolling ? (
+                  'Enrolling...'
+                ) : !user ? (
+                  'Log In to Enroll'
                 ) : (
                   'Enroll Now'
                 )}
@@ -248,7 +261,6 @@ export default function SkillDetailPage() {
               </Button>
             </div>
 
-            {/* Quick Info */}
             <div className="bg-slate-50 border rounded-lg p-6 space-y-4">
               <div>
                 <p className="text-sm text-slate-600 mb-1">Category</p>

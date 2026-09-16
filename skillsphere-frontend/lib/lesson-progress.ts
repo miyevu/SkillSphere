@@ -1,44 +1,42 @@
 'use client';
 
-const STORAGE_KEY = 'skillsphere_lesson_progress';
-
-type ProgressMap = Record<string, string[]>; // skillId -> completed lessonIds
-
-function readProgress(): ProgressMap {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+export interface LessonProgressRecord {
+  id: string;
+  skillId: string;
+  lessonId: string;
+  completedAt: string;
 }
 
-function writeProgress(data: ProgressMap) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+export async function getAllLessonProgress(skillId?: string): Promise<LessonProgressRecord[]> {
+  const url = skillId ? `/api/lesson-progress?skillId=${encodeURIComponent(skillId)}` : '/api/lesson-progress';
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.progress || [];
 }
 
-export function isLessonComplete(skillId: string, lessonId: string): boolean {
-  const progress = readProgress();
-  return progress[skillId]?.includes(lessonId) ?? false;
+export async function getCompletedLessonIds(skillId: string): Promise<string[]> {
+  const progress = await getAllLessonProgress(skillId);
+  return progress.map((p) => p.lessonId);
 }
 
-export function getCompletedLessonIds(skillId: string): string[] {
-  return readProgress()[skillId] ?? [];
+export async function isLessonComplete(skillId: string, lessonId: string): Promise<boolean> {
+  const ids = await getCompletedLessonIds(skillId);
+  return ids.includes(lessonId);
 }
 
-export function markLessonComplete(skillId: string, lessonId: string) {
-  const progress = readProgress();
-  const existing = progress[skillId] ?? [];
-  if (!existing.includes(lessonId)) {
-    progress[skillId] = [...existing, lessonId];
-    writeProgress(progress);
-  }
+export async function markLessonComplete(skillId: string, lessonId: string): Promise<void> {
+  await fetch('/api/lesson-progress', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skillId, lessonId, completed: true }),
+  });
 }
 
-export function markLessonIncomplete(skillId: string, lessonId: string) {
-  const progress = readProgress();
-  const existing = progress[skillId] ?? [];
-  progress[skillId] = existing.filter((id) => id !== lessonId);
-  writeProgress(progress);
+export async function markLessonIncomplete(skillId: string, lessonId: string): Promise<void> {
+  await fetch('/api/lesson-progress', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skillId, lessonId, completed: false }),
+  });
 }

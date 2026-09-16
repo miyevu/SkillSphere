@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import PublicFooter from '@/components/layout/PublicFooter';
+import PublicHeader from '@/components/layout/PublicHeader';
 import { 
   BookOpen, 
   Award, 
@@ -9,7 +11,6 @@ import {
   TrendingUp, 
   CheckCircle2,
   ArrowRight,
-  Star
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -47,27 +48,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Star className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-bold text-primary">SkillSphere</span>
-            </div>
-            <div className="flex gap-4">
-              <Link href="/auth/login">
-                <Button variant="ghost">Log In</Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button>Sign Up</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <PublicHeader />
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
@@ -179,7 +160,7 @@ export default function LandingPage() {
               </Button>
             </Link>
             <Link href="/auth/login">
-              <Button size="lg" variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10">
+              <Button size="lg" variant="secondary">
                 I Already Have an Account
               </Button>
             </Link>
@@ -188,45 +169,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-muted/40 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">SkillSphere</h3>
-              <p className="text-sm text-muted-foreground">Practical skill development platform for GCTU students.</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Product</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-foreground transition-colors">Features</Link></li>
-                <li><Link href="#" className="hover:text-foreground transition-colors">Skills</Link></li>
-                <li><Link href="#" className="hover:text-foreground transition-colors">Pricing</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Company</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-foreground transition-colors">About</Link></li>
-                <li><Link href="#" className="hover:text-foreground transition-colors">Blog</Link></li>
-                <li><Link href="#" className="hover:text-foreground transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Legal</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-foreground transition-colors">Privacy</Link></li>
-                <li><Link href="#" className="hover:text-foreground transition-colors">Terms</Link></li>
-                <li><Link href="#" className="hover:text-foreground transition-colors">FAQ</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-border pt-8">
-            <p className="text-center text-sm text-muted-foreground">
-              © 2026 SkillSphere. Built for Ghana Communication Technology University (GCTU).
-            </p>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

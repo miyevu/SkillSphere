@@ -90,7 +90,7 @@ export default function SignupForm() {
       return;
     }
 
-    router.push(result.user?.role === 'lecturer' ? '/lecturer/dashboard' : '/dashboard');
+    router.push(result.user?.role === 'LECTURER' ? '/lecturer/dashboard' : '/dashboard');
   };
 
   if (pendingMessage) {

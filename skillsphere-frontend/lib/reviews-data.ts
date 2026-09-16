@@ -3,60 +3,9 @@
 export interface Review {
   id: string;
   projectId: string;
-  reviewerEmail: string;
+  reviewerId: string;
   reviewerName: string;
-  revieweeEmail: string;
-  revieweeName: string;
-  overallRating: number; // 1-5
-  qualityRating: number;
-  communicationRating: number;
-  timelinessRating: number;
-  professionalismRating: number;
-  comment: string;
-  response: string; // reviewee's reply, empty until they respond
-  respondedAt: string;
-  createdAt: string;
-}
-
-const REVIEWS_KEY = 'skillsphere_reviews';
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-export function getReviews(): Review[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(REVIEWS_KEY);
-    return raw ? (JSON.parse(raw) as Review[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveReviews(items: Review[]) {
-  localStorage.setItem(REVIEWS_KEY, JSON.stringify(items));
-}
-
-export function getReviewsForUser(email: string): Review[] {
-  return getReviews()
-    .filter((r) => r.revieweeEmail === email)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-export function getReviewForProjectByReviewer(projectId: string, reviewerEmail: string): Review | undefined {
-  return getReviews().find((r) => r.projectId === projectId && r.reviewerEmail === reviewerEmail);
-}
-
-export function getReviewsForProject(projectId: string): Review[] {
-  return getReviews().filter((r) => r.projectId === projectId);
-}
-
-export function addReview(input: {
-  projectId: string;
-  reviewerEmail: string;
-  reviewerName: string;
-  revieweeEmail: string;
+  revieweeId: string;
   revieweeName: string;
   overallRating: number;
   qualityRating: number;
@@ -64,28 +13,96 @@ export function addReview(input: {
   timelinessRating: number;
   professionalismRating: number;
   comment: string;
-}): Review {
-  const newReview: Review = {
-    ...input,
-    id: generateId(),
-    response: '',
-    respondedAt: '',
-    createdAt: new Date().toISOString(),
+  response: string;
+  respondedAt: string | null;
+  createdAt: string;
+}
+
+interface RawReview {
+  id: string;
+  projectId: string;
+  reviewerId: string;
+  revieweeId: string;
+  overallRating: number;
+  qualityRating: number;
+  communicationRating: number;
+  timelinessRating: number;
+  professionalismRating: number;
+  comment: string;
+  response: string;
+  respondedAt: string | null;
+  createdAt: string;
+  reviewer: { fullName: string };
+  reviewee: { fullName: string };
+}
+
+function mapReview(raw: RawReview): Review {
+  return {
+    id: raw.id,
+    projectId: raw.projectId,
+    reviewerId: raw.reviewerId,
+    reviewerName: raw.reviewer.fullName,
+    revieweeId: raw.revieweeId,
+    revieweeName: raw.reviewee.fullName,
+    overallRating: raw.overallRating,
+    qualityRating: raw.qualityRating,
+    communicationRating: raw.communicationRating,
+    timelinessRating: raw.timelinessRating,
+    professionalismRating: raw.professionalismRating,
+    comment: raw.comment,
+    response: raw.response,
+    respondedAt: raw.respondedAt,
+    createdAt: raw.createdAt,
   };
-  saveReviews([newReview, ...getReviews()]);
-  return newReview;
 }
 
-export function respondToReview(reviewId: string, response: string) {
-  saveReviews(
-    getReviews().map((r) =>
-      r.id === reviewId ? { ...r, response, respondedAt: new Date().toISOString() } : r
-    )
-  );
+export async function getReviewsForUser(userId: string): Promise<Review[]> {
+  const res = await fetch(`/api/reviews?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.reviews || []).map(mapReview);
 }
 
-export function getAverageRating(email: string): { average: number; count: number } {
-  const reviews = getReviewsForUser(email);
+export async function getReviewsForProject(projectId: string): Promise<Review[]> {
+  const res = await fetch(`/api/reviews?projectId=${encodeURIComponent(projectId)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.reviews || []).map(mapReview);
+}
+
+export async function getReviewForProjectByReviewer(
+  projectId: string,
+  reviewerId: string
+): Promise<Review | undefined> {
+  const reviews = await getReviewsForProject(projectId);
+  return reviews.find((r) => r.reviewerId === reviewerId);
+}
+
+export async function addReview(input: {
+  projectId: string;
+  overallRating: number;
+  qualityRating: number;
+  communicationRating: number;
+  timelinessRating: number;
+  professionalismRating: number;
+  comment: string;
+}): Promise<void> {
+  await fetch('/api/reviews', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function respondToReview(reviewId: string, response: string): Promise<void> {
+  await fetch(`/api/reviews/${reviewId}/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ response }),
+  });
+}
+
+export function getAverageRating(reviews: Review[]): { average: number; count: number } {
   if (reviews.length === 0) return { average: 0, count: 0 };
   const sum = reviews.reduce((total, r) => total + r.overallRating, 0);
   return { average: Math.round((sum / reviews.length) * 10) / 10, count: reviews.length };

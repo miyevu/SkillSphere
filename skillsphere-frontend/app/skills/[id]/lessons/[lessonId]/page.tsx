@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { skillsData } from '@/lib/skills-data';
-import { isLessonComplete, markLessonComplete, markLessonIncomplete } from '@/lib/lesson-progress';
+import { getCompletedLessonIds, markLessonComplete, markLessonIncomplete } from '@/lib/lesson-progress';
 import { ArrowLeft, ArrowRight, CheckCircle, Circle, PlayCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -27,13 +27,23 @@ export default function LessonPage() {
   const prevLesson = currentIndex > 0 ? flatLessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < flatLessons.length - 1 ? flatLessons[currentIndex + 1] : null;
 
-  const [completed, setCompleted] = useState(false);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = () => {
+    if (skill) {
+      getCompletedLessonIds(skill.id).then((ids) => {
+        setCompletedIds(ids);
+        setLoading(false);
+      });
+    }
+  };
 
   useEffect(() => {
-    if (skill && lesson) {
-      setCompleted(isLessonComplete(skill.id, lesson.id));
-    }
-  }, [skill, lesson]);
+    setLoading(true);
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skill?.id, lessonId]);
 
   if (!skill || !lesson) {
     return (
@@ -48,19 +58,20 @@ export default function LessonPage() {
     );
   }
 
-  const toggleComplete = () => {
+  const completed = completedIds.includes(lesson.id);
+
+  const toggleComplete = async () => {
     if (completed) {
-      markLessonIncomplete(skill.id, lesson.id);
-      setCompleted(false);
+      await markLessonIncomplete(skill.id, lesson.id);
     } else {
-      markLessonComplete(skill.id, lesson.id);
-      setCompleted(true);
+      await markLessonComplete(skill.id, lesson.id);
     }
+    refresh();
   };
 
-  const goToNext = () => {
+  const goToNext = async () => {
     if (!completed) {
-      markLessonComplete(skill.id, lesson.id);
+      await markLessonComplete(skill.id, lesson.id);
     }
     if (nextLesson) {
       router.push(`/skills/${skill.id}/lessons/${nextLesson.id}`);
@@ -128,7 +139,7 @@ export default function LessonPage() {
               Previous
             </Button>
 
-            <Button variant={completed ? 'outline' : 'default'} onClick={toggleComplete} className="gap-2">
+            <Button variant={completed ? 'outline' : 'default'} onClick={toggleComplete} className="gap-2" disabled={loading}>
               {completed ? <CheckCircle className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
               {completed ? 'Completed' : 'Mark as complete'}
             </Button>
@@ -150,7 +161,7 @@ export default function LessonPage() {
                   <div className="space-y-1">
                     {module.lessons.map((l) => {
                       const isCurrent = l.id === lesson.id;
-                      const isDone = isLessonComplete(skill.id, l.id);
+                      const isDone = completedIds.includes(l.id);
                       return (
                         <Link
                           key={l.id}

@@ -1,0 +1,326 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  SUSPENDED
+  REJECTED
+}
+
+model User {
+  id             String           @id @default(cuid())
+  fullName       String
+  email          String           @unique
+  passwordHash   String
+  role           UserRole         @default(STUDENT)
+  status         UserStatus       @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  enrollments      Enrollment[]
+  lessonProgress   LessonProgress[]
+  portfolioItems   PortfolioItem[]
+
+  serviceListings  ServiceListing[]
+  jobPosts         JobPost[]        @relation("ClientJobPosts")
+  proposals        Proposal[]
+  projectsAsClient     Project[]    @relation("ProjectClient")
+  projectsAsFreelancer Project[]    @relation("ProjectFreelancer")
+  projectMessages  ProjectMessage[]
+
+  reviewsGiven     Review[]         @relation("ReviewsGiven")
+  reviewsReceived  Review[]         @relation("ReviewsReceived")
+
+  notifications    Notification[]
+
+  profile          Profile?
+
+  verificationRequestsAsStudent  VerificationRequest[] @relation("VerificationStudent")
+  verificationRequestsAsLecturer VerificationRequest[] @relation("VerificationLecturer")
+
+  badgesEarned     Badge[]          @relation("BadgeStudent")
+  badgesAwarded    Badge[]          @relation("BadgeAwardedBy")
+
+  assignmentSubmissions AssignmentSubmission[] @relation("SubmissionStudent")
+  gradedSubmissions     AssignmentSubmission[] @relation("SubmissionGradedBy")
+
+  @@map("users")
+}
+
+model Enrollment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId     String
+  enrolledAt  DateTime @default(now())
+
+  @@unique([userId, skillId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId     String
+  lessonId    String
+  completedAt DateTime @default(now())
+
+  @@unique([userId, skillId, lessonId])
+  @@map("lesson_progress")
+}
+
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @default("")
+  category    String   @default("")
+  skillsUsed  String[]
+  toolsUsed   String[]
+  projectDate String   @default("")
+  outcome     String   @default("")
+  projectLink String   @default("")
+  mediaLinks  Json     @default("[]")
+  featured    Boolean  @default(false)
+  visibility  String   @default("institution")
+  status      String   @default("completed")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  verificationRequests VerificationRequest[]
+
+  @@map("portfolio_items")
+}
+
+// ---------- Marketplace ----------
+
+model ServiceListing {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  category     String   @default("")
+  description  String   @default("")
+  skills       String[]
+  tools        String[]
+  packages     Json     @default("[]")
+  sampleLinks  Json     @default("[]")
+  faqs         Json     @default("[]")
+  availability String   @default("available")
+  location     String   @default("")
+  terms        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects     Project[] @relation("ProjectFromListing")
+
+  @@map("service_listings")
+}
+
+model JobPost {
+  id                  String     @id @default(cuid())
+  clientId            String
+  client              User       @relation("ClientJobPosts", fields: [clientId], references: [id], onDelete: Cascade)
+  title               String
+  description         String     @default("")
+  requiredSkills      String[]
+  budget              String     @default("")
+  deadline            String     @default("")
+  projectType         String     @default("")
+  freelancersRequired Int        @default(1)
+  remote              Boolean    @default(true)
+  status              String     @default("open")
+  createdAt           DateTime   @default(now())
+
+  proposals           Proposal[]
+  projects            Project[]  @relation("ProjectFromJob")
+
+  @@map("job_posts")
+}
+
+model Proposal {
+  id                   String   @id @default(cuid())
+  jobId                String
+  job                  JobPost  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  studentId            String
+  student              User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  coverLetter          String   @default("")
+  proposedPrice        Float    @default(0)
+  proposedDeliveryDays Int      @default(0)
+  status               String   @default("pending")
+  createdAt            DateTime @default(now())
+
+  @@map("proposals")
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  title          String
+  clientId       String
+  client         User     @relation("ProjectClient", fields: [clientId], references: [id], onDelete: Cascade)
+  freelancerId   String
+  freelancer     User     @relation("ProjectFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+  agreedPrice    Float    @default(0)
+  deliveryDate   String   @default("")
+  scope          String   @default("")
+  milestones     Json     @default("[]")
+  status         String   @default("active")
+  sourceType     String   @default("job")
+  sourceListingId String? 
+  sourceListing  ServiceListing? @relation("ProjectFromListing", fields: [sourceListingId], references: [id])
+  sourceJobId    String?
+  sourceJob      JobPost? @relation("ProjectFromJob", fields: [sourceJobId], references: [id])
+  createdAt      DateTime @default(now())
+
+  messages       ProjectMessage[]
+  reviews        Review[]
+
+  @@map("projects")
+}
+
+model ProjectMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@map("project_messages")
+}
+
+model Review {
+  id                     String    @id @default(cuid())
+  projectId              String
+  project                Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewerId             String
+  reviewer               User      @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  revieweeId             String
+  reviewee               User      @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+  overallRating          Int
+  qualityRating          Int       @default(0)
+  communicationRating    Int       @default(0)
+  timelinessRating       Int       @default(0)
+  professionalismRating  Int       @default(0)
+  comment                String    @default("")
+  response               String    @default("")
+  respondedAt            DateTime?
+  createdAt              DateTime  @default(now())
+
+  @@unique([projectId, reviewerId])
+  @@map("reviews")
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  recipientId   String
+  recipient     User     @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  type          String
+  title         String
+  message       String
+  link          String   @default("")
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// ---------- Profile ----------
+
+model Profile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photo             String   @default("🧑‍🎓")
+  programme         String   @default("")
+  department        String   @default("")
+  level             String   @default("")
+  institution       String   @default("Ghana Communication Technology University (GCTU)")
+  bio               String   @default("")
+  skills            Json     @default("[]")
+  availability      String   @default("available")
+  preferredWorkType String   @default("remote")
+  location          String   @default("")
+  timezone          String   @default("")
+  externalLinks     Json     @default("[]")
+  visibility        String   @default("institution")
+  updatedAt         DateTime @updatedAt
+
+  @@map("profiles")
+}
+
+// ---------- Badges / Verification ----------
+
+model VerificationRequest {
+  id                 String    @id @default(cuid())
+  portfolioItemId    String
+  portfolioItem      PortfolioItem @relation(fields: [portfolioItemId], references: [id], onDelete: Cascade)
+  studentId          String
+  student            User      @relation("VerificationStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  projectTitle       String
+  projectDescription String    @default("")
+  projectLink        String    @default("")
+  status             String    @default("pending")
+  lecturerFeedback   String    @default("")
+  lecturerId         String?
+  lecturer           User?     @relation("VerificationLecturer", fields: [lecturerId], references: [id])
+  reviewedAt         DateTime?
+  submittedAt        DateTime  @default(now())
+
+  badge              Badge?
+
+  @@map("verification_requests")
+}
+
+model Badge {
+  id                String   @id @default(cuid())
+  studentId         String
+  student           User     @relation("BadgeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  title             String
+  portfolioItemId   String
+  verificationId    String   @unique
+  verification      VerificationRequest @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  awardedById       String
+  awardedBy         User     @relation("BadgeAwardedBy", fields: [awardedById], references: [id])
+  awardedAt         DateTime @default(now())
+
+  @@map("badges")
+}
+
+// ---------- Assignments ----------
+
+model AssignmentSubmission {
+  id               String    @id @default(cuid())
+  assignmentId     String
+  skillId          String
+  moduleId         String
+  assignmentTitle  String
+  studentId        String
+  student          User      @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  submissionLink   String
+  submissionNote   String    @default("")
+  submittedAt      DateTime  @default(now())
+  status           String    @default("submitted")
+  score            Int?
+  feedback         String    @default("")
+  gradedById       String?
+  gradedBy         User?     @relation("SubmissionGradedBy", fields: [gradedById], references: [id])
+  gradedAt         DateTime?
+
+  @@map("assignment_submissions")
+}

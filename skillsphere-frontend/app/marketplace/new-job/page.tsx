@@ -22,6 +22,7 @@ export default function NewJobPage() {
   const [projectType, setProjectType] = useState('');
   const [freelancersRequired, setFreelancersRequired] = useState(1);
   const [remote, setRemote] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   if (isLoading) return null;
   if (!user) {
@@ -34,11 +35,11 @@ export default function NewJobPage() {
     );
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) return;
-    const job = addJobPost({
-      clientEmail: user.email,
-      clientName: user.fullName,
+    setSubmitting(true);
+
+    const job = await addJobPost({
       title,
       description,
       requiredSkills: skillsText.split(',').map((s) => s.trim()).filter(Boolean),
@@ -48,7 +49,9 @@ export default function NewJobPage() {
       freelancersRequired,
       remote,
     });
-    router.push(`/marketplace/jobs/${job.id}`);
+
+    setSubmitting(false);
+    if (job) router.push(`/marketplace/jobs/${job.id}`);
   };
 
   return (
@@ -112,9 +115,9 @@ export default function NewJobPage() {
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={handleSubmit} disabled={!title.trim()} className="gap-2">
+          <Button onClick={handleSubmit} disabled={!title.trim() || submitting} className="gap-2">
             <Save className="w-4 h-4" />
-            Post Job
+            {submitting ? 'Posting...' : 'Post Job'}
           </Button>
         </div>
       </div>

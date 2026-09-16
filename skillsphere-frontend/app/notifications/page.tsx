@@ -4,18 +4,23 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getNotificationsForUser, markAsRead, markAllAsRead, Notification } from '@/lib/notifications-data';
+import { getNotificationsForUser, markAsRead, markAllAsRead, NotificationItem } from '@/lib/notifications-data';
 import { Button } from '@/components/ui/button';
 import { Bell, CheckCheck, ArrowLeft } from 'lucide-react';
 
 export default function NotificationsPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState(true);
 
-  const refresh = () => {
-    if (user) setNotifications(getNotificationsForUser(user.email));
+  const refresh = async () => {
+    if (!user) return;
+    setLoading(true);
+    const items = await getNotificationsForUser();
+    setNotifications(items);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -36,16 +41,16 @@ export default function NotificationsPage() {
   }
 
   const dashboardPath =
-    user.role === 'lecturer' ? '/lecturer/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+    user.role === 'LECTURER' ? '/lecturer/dashboard' : user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
 
-  const handleClick = (n: Notification) => {
-    markAsRead(n.id);
+  const handleClick = async (n: NotificationItem) => {
+    await markAsRead(n.id);
     refresh();
     if (n.link) router.push(n.link);
   };
 
-  const handleMarkAllRead = () => {
-    markAllAsRead(user.email);
+  const handleMarkAllRead = async () => {
+    await markAllAsRead();
     refresh();
   };
 
@@ -93,7 +98,11 @@ export default function NotificationsPage() {
           </button>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-white border border-dashed rounded-lg p-12 text-center">
             <Bell className="w-12 h-12 text-slate-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Nothing here</h3>

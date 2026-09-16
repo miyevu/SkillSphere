@@ -9,7 +9,7 @@ import {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
-  Notification,
+  NotificationItem,
 } from '@/lib/notifications-data';
 import { Bell, CheckCheck } from 'lucide-react';
 
@@ -17,17 +17,20 @@ export default function NotificationBell() {
   const { user } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const refresh = () => {
+  const refresh = async () => {
     if (!user) return;
-    setNotifications(getNotificationsForUser(user.email).slice(0, 8));
-    setUnreadCount(getUnreadCount(user.email));
+    const [items, count] = await Promise.all([getNotificationsForUser(), getUnreadCount()]);
+    setNotifications(items.slice(0, 8));
+    setUnreadCount(count);
   };
 
   useEffect(() => {
     refresh();
+    const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -38,15 +41,15 @@ export default function NotificationBell() {
     setOpen((prev) => !prev);
   };
 
-  const handleClickNotification = (n: Notification) => {
-    markAsRead(n.id);
+  const handleClickNotification = async (n: NotificationItem) => {
+    await markAsRead(n.id);
     setOpen(false);
     router.push(n.link || '/notifications');
     refresh();
   };
 
-  const handleMarkAllRead = () => {
-    markAllAsRead(user.email);
+  const handleMarkAllRead = async () => {
+    await markAllAsRead();
     refresh();
   };
 

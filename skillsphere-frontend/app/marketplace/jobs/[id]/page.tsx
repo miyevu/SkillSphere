@@ -18,15 +18,17 @@ export default function JobDetailPage() {
   const { user } = useAuth();
   const [job, setJob] = useState<JobPost | null | undefined>(undefined);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [accepting, setAccepting] = useState(false);
 
   const [coverLetter, setCoverLetter] = useState('');
   const [proposedPrice, setProposedPrice] = useState('');
   const [proposedDeliveryDays, setProposedDeliveryDays] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const refresh = () => {
-    const j = getJobPost(params.id as string);
-    setJob(j);
-    if (j) setProposals(getProposalsForJob(j.id));
+  const refresh = async () => {
+    const j = await getJobPost(params.id as string);
+    setJob(j ?? null);
+    if (j) setProposals(await getProposalsForJob(j.id));
   };
 
   useEffect(() => {
@@ -50,25 +52,27 @@ export default function JobDetailPage() {
   const isOwner = user?.email === job.clientEmail;
   const myProposal = user ? proposals.find((p) => p.studentEmail === user.email) : undefined;
 
-  const handleSubmitProposal = () => {
+  const handleSubmitProposal = async () => {
     if (!user || !coverLetter.trim() || !proposedPrice || !proposedDeliveryDays) return;
-    addProposal({
+    setSubmitting(true);
+    await addProposal({
       jobId: job.id,
-      studentEmail: user.email,
-      studentName: user.fullName,
       coverLetter,
       proposedPrice: Number(proposedPrice),
       proposedDeliveryDays: Number(proposedDeliveryDays),
     });
-    refresh();
+    setSubmitting(false);
     setCoverLetter('');
     setProposedPrice('');
     setProposedDeliveryDays('');
+    refresh();
   };
 
-  const handleAccept = (proposal: Proposal) => {
-    const project = acceptProposal(proposal, job);
-    router.push(`/marketplace/projects/${project.id}`);
+  const handleAccept = async (proposal: Proposal) => {
+    setAccepting(true);
+    const project = await acceptProposal(proposal);
+    setAccepting(false);
+    if (project) router.push(`/marketplace/projects/${project.id}`);
   };
 
   return (
@@ -108,7 +112,6 @@ export default function JobDetailPage() {
           </div>
         </div>
 
-        {/* Owner view: proposals list */}
         {isOwner && (
           <div className="bg-white border rounded-lg p-6">
             <h2 className="font-bold text-slate-900 mb-4">Proposals ({proposals.length})</h2>
@@ -133,7 +136,7 @@ export default function JobDetailPage() {
                     </div>
                     <p className="text-sm text-slate-600 mb-3">{p.coverLetter}</p>
                     {job.status === 'open' && p.status === 'pending' && (
-                      <Button size="sm" onClick={() => handleAccept(p)} className="gap-2">
+                      <Button size="sm" onClick={() => handleAccept(p)} disabled={accepting} className="gap-2">
                         <CheckCircle className="w-4 h-4" />
                         Accept & Hire
                       </Button>
@@ -145,7 +148,6 @@ export default function JobDetailPage() {
           </div>
         )}
 
-        {/* Non-owner view: submit proposal */}
         {!isOwner && user && job.status === 'open' && !myProposal && (
           <div className="bg-white border rounded-lg p-6 space-y-4">
             <h2 className="font-bold text-slate-900">Submit a Proposal</h2>
@@ -169,8 +171,8 @@ export default function JobDetailPage() {
                 <Input type="number" value={proposedDeliveryDays} onChange={(e) => setProposedDeliveryDays(e.target.value)} />
               </div>
             </div>
-            <Button onClick={handleSubmitProposal} disabled={!coverLetter.trim() || !proposedPrice || !proposedDeliveryDays}>
-              Submit Proposal
+            <Button onClick={handleSubmitProposal} disabled={!coverLetter.trim() || !proposedPrice || !proposedDeliveryDays || submitting}>
+              {submitting ? 'Submitting...' : 'Submit Proposal'}
             </Button>
           </div>
         )}

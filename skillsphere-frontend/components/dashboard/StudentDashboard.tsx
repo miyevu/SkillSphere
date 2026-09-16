@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { StudentProgress, getStudentProgress, calculateProgress } from '@/lib/student-data';
+import { StudentProgress, getStudentProgress } from '@/lib/student-data';
 import EnrolledCourseCard from './EnrolledCourseCard';
 import { BookOpen, Target, Trophy, Zap, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -16,12 +16,9 @@ export default function StudentDashboard({ userEmail }: StudentDashboardProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading student data
-    setTimeout(() => {
-      const data = getStudentProgress();
-      setStudentProgress(data);
-      setLoading(false);
-    }, 500);
+    getStudentProgress()
+      .then(setStudentProgress)
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -61,13 +58,11 @@ export default function StudentDashboard({ userEmail }: StudentDashboardProps) {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">Welcome back! 👋</h1>
         <p className="text-slate-600">Here's your learning progress at a glance</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-3">
@@ -106,7 +101,6 @@ export default function StudentDashboard({ userEmail }: StudentDashboardProps) {
         </div>
       </div>
 
-      {/* Overall Progress */}
       <div className="bg-white border rounded-lg p-6 sm:p-8">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -145,7 +139,6 @@ export default function StudentDashboard({ userEmail }: StudentDashboardProps) {
         </div>
       </div>
 
-      {/* Enrolled Courses Section */}
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -178,7 +171,6 @@ export default function StudentDashboard({ userEmail }: StudentDashboardProps) {
         )}
       </div>
 
-      {/* Achievements Section */}
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border rounded-lg p-6 sm:p-8">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">🎉 Achievements</h2>
         <div className="grid md:grid-cols-3 gap-4">

@@ -16,9 +16,9 @@ export interface PortfolioItem {
   category: string;
   skillsUsed: string[];
   toolsUsed: string[];
-  projectDate: string; // ISO date string, from a <input type="date">
+  projectDate: string;
   outcome: string;
-  projectLink: string; // e.g. GitHub repo or live site
+  projectLink: string;
   mediaLinks: PortfolioMediaLink[];
   featured: boolean;
   visibility: PortfolioVisibility;
@@ -26,54 +26,42 @@ export interface PortfolioItem {
   createdAt: string;
 }
 
-const STORAGE_KEY = 'skillsphere_portfolio_items';
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 10);
+export async function getPortfolioItems(): Promise<PortfolioItem[]> {
+  const res = await fetch('/api/portfolio');
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.items || [];
 }
 
-export function getPortfolioItems(): PortfolioItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PortfolioItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAll(items: PortfolioItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
-
-export function addPortfolioItem(
+export async function addPortfolioItem(
   item: Omit<PortfolioItem, 'id' | 'createdAt'>
-): PortfolioItem {
-  const newItem: PortfolioItem = {
-    ...item,
-    id: generateId(),
-    createdAt: new Date().toISOString(),
-  };
-  const items = getPortfolioItems();
-  saveAll([newItem, ...items]);
-  return newItem;
+): Promise<PortfolioItem | null> {
+  const res = await fetch('/api/portfolio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.item;
 }
 
-export function updatePortfolioItem(id: string, patch: Partial<PortfolioItem>) {
-  const items = getPortfolioItems().map((item) =>
-    item.id === id ? { ...item, ...patch } : item
-  );
-  saveAll(items);
+export async function updatePortfolioItem(id: string, patch: Partial<PortfolioItem>): Promise<void> {
+  await fetch(`/api/portfolio/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
 }
 
-export function deletePortfolioItem(id: string) {
-  saveAll(getPortfolioItems().filter((item) => item.id !== id));
+export async function deletePortfolioItem(id: string): Promise<void> {
+  await fetch(`/api/portfolio/${id}`, { method: 'DELETE' });
 }
 
-export function toggleFeatured(id: string) {
-  const items = getPortfolioItems();
-  const item = items.find((i) => i.id === id);
-  if (item) updatePortfolioItem(id, { featured: !item.featured });
+// Note: now takes the item's current featured value, since there's no
+// synchronous localStorage lookup to check it for us anymore.
+export async function toggleFeatured(id: string, currentFeatured: boolean): Promise<void> {
+  await updatePortfolioItem(id, { featured: !currentFeatured });
 }
 
 export function getEmptyDraft(): Omit<PortfolioItem, 'id' | 'createdAt'> {

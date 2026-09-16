@@ -1,46 +1,38 @@
 'use client';
 
-const STORAGE_KEY = 'skillsphere_enrollments';
-
-interface Enrollment {
+export interface EnrollmentRecord {
+  id: string;
   skillId: string;
-  enrolledDate: string; // ISO string
+  enrolledAt: string;
 }
 
-function readEnrollments(): Enrollment[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+export async function getEnrollments(): Promise<EnrollmentRecord[]> {
+  const res = await fetch('/api/enrollments');
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.enrollments || [];
 }
 
-function writeEnrollments(data: Enrollment[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+export async function getEnrolledSkillIds(): Promise<string[]> {
+  const enrollments = await getEnrollments();
+  return enrollments.map((e) => e.skillId);
 }
 
-export function isEnrolled(skillId: string): boolean {
-  return readEnrollments().some((e) => e.skillId === skillId);
+export async function isEnrolled(skillId: string): Promise<boolean> {
+  const ids = await getEnrolledSkillIds();
+  return ids.includes(skillId);
 }
 
-export function enrollInSkill(skillId: string) {
-  const enrollments = readEnrollments();
-  if (!enrollments.some((e) => e.skillId === skillId)) {
-    enrollments.push({ skillId, enrolledDate: new Date().toISOString() });
-    writeEnrollments(enrollments);
-  }
+export async function enrollInSkill(skillId: string): Promise<boolean> {
+  const res = await fetch('/api/enrollments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skillId }),
+  });
+  return res.ok;
 }
 
-export function getEnrollmentDate(skillId: string): string | undefined {
-  return readEnrollments().find((e) => e.skillId === skillId)?.enrolledDate;
-}
-
-export function getEnrolledSkillIds(): string[] {
-  return readEnrollments().map((e) => e.skillId);
-}
-
-export function unenrollFromSkill(skillId: string) {
-  writeEnrollments(readEnrollments().filter((e) => e.skillId !== skillId));
+export async function getEnrollmentDate(skillId: string): Promise<string | undefined> {
+  const enrollments = await getEnrollments();
+  return enrollments.find((e) => e.skillId === skillId)?.enrolledAt;
 }

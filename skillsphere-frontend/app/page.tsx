@@ -5,6 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import LandingPage from '@/components/landing/LandingPage';
 
+function redirectPathForRole(role?: string) {
+  if (role === 'LECTURER') return '/lecturer/dashboard';
+  if (role === 'ADMIN') return '/admin/dashboard';
+  return '/dashboard';
+}
+
 export default function Home() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -13,7 +19,7 @@ export default function Home() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        router.push(user.role === 'lecturer' ? '/lecturer/dashboard' : '/dashboard');
+        router.push(redirectPathForRole(user.role));
       } else {
         setShowContent(true);
       }
